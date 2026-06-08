@@ -1,4 +1,4 @@
-# **OpenFOAM 3-day school - 2025**
+# **OpenFOAM 3-day school**
 
 - **Date:** Year cycle
 - **Place:** OnLine - University of Ljubljana, Faculty of Mechanical Engineering, HPC Lab (LECAD)
