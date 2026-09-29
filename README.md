@@ -39,10 +39,13 @@
 - Propeller analysis
    - introduction to Multi Reference Frame system (MRF)  
 
-**Tools an Literature**
+**Tools and Literature**
  - description of standard tools: OpenFOAM, Python and HPC
  - relevant literature for the course
 
+**New Stuff**
+ - Staff that was presented as work in between the course.
+ 
 ---
 ## Introduction
 
