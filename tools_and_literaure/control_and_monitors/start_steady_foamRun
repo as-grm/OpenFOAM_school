@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+# Run from this directory
+cd "$(dirname -- "$(readlink -f -- "$0")")" || exit 1
+
+# Secure to OpenFAOM.org
+if [[ -f "$FOAM_ETC/controlDict" ]]; then
+  echo " -> Hiding controlDict in $FOAM_ETC to work with OpenFOAM.org"
+  mv $FOAM_ETC/controlDict $FOAM_ETC/controlDict.bak
+fi
+
+# Source tutorial run functions
+source "$WM_PROJECT_DIR/bin/tools/RunFunctions"
+
+# ******************************************************************************
+
+# Set start/end time and solver type for steady state simulation
+startTime="${1:-0}"
+endTime="${2:-700}"
+solver="${3:-simple}" # simple/simplec or pimple
+
+
+echo "Foam simulation set up:"
+case "$solver" in
+    "simple")
+        echo " ->     solver: SIMPLE!"
+        ;;
+    "simplec")
+        echo " ->     solver: SIMPLE-C!"
+        ;;
+    "pimple")
+        echo " ->     solver: PIMPLE!"
+        ;;
+    *)
+        echo "Invalid solver! Abort ..."
+        exit 1
+        ;;
+esac
+echo " -> start time: $startTime"	
+echo " ->   end time: $endTime"
+echo
+
+	
+# Initialize BC for the case
+rm -rf 0
+cp -r 0_org 0
+
+# --------------------------------------------------------------------------
+#  In **MRF** and **DynamicMesh** simulations
+#  the initialization with **potentialFoam** does NOT work !
+#  !!! Comment it out !!!
+# --------------------------------------------------------------------------
+# runApplication potentialFoam -initialiseUBCs -writep
+
+
+# -------------------------------
+# --- Prepare the steady case ---
+# -------------------------------
+# Set steady state simulation control dict declarations
+sed -i '/^#include.*/c\\#include "controlDict_ss"' system/controlDict
+foamDictionary system/controlDict -entry startTime -set ${startTime}
+foamDictionary system/controlDict -entry endTime -set ${endTime}
+
+foamDictionary system/fvSchemes -entry ddtSchemes/default -set "steadyState"
+
+# Choose between the SIMPLE/SIMPLEC or PIMPLE steady state solver
+if [[ "$solver" == "simple" || "$solver" == "simplec" ]]; then
+	if [[ "$solver" == "simple" ]]; then
+		sed -i '/^#include.*/c\\#include "fvSolution.simple"' system/fvSolution
+	else
+		sed -i '/^#include.*/c\\#include "fvSolution.simplec"' system/fvSolution	
+	fi
+	
+	sed -i '/^#include.*/c\\#include "fvSchemes.simple"' system/fvSchemes
+	foamDictionary system/fvSchemes -entry ddtSchemes/default -set "steadyState"
+else
+	sed -i '/^#include.*/c\\#include "fvSchemes.pimple"' system/fvSchemes
+	sed -i '/^#include.*/c\\#include "fvSolution.pimple"' system/fvSolution
+	foamDictionary system/fvSchemes -entry ddtSchemes/default -set "steadyState"
+fi
+
+# Case is prepared and run decompose for parallel run
+runApplication decomposePar
+
+# Run in parallel steady state
+runParallel foamRun
+
+# Reconstruct the latest result
+runApplication reconstructPar -latestTime
+
+# Do some post processing
+foamPostProcess -latestTime -solver incompressibleFluid -func yPlus
+foamPostProcess -latestTime -solver incompressibleFluid -func wallShearStress
+
+# Generate residual and forces plot
+/opt/conda/miniconda3/bin/python3 plot_residuals.py -o pdf
+/opt/conda/miniconda3/bin/python3 plot_forces.py -t 100 -o pdf
+
+# ******************************************************************************

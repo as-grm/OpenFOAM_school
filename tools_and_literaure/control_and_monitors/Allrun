@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+# Run from this directory
+cd "$(dirname -- "$(readlink -f -- "$0")")" || exit 1
+
+# Secure to OpenFAOM.org
+if [[ -f "$FOAM_ETC/controlDict" ]]; then
+  echo " -> Hiding controlDict in $FOAM_ETC to work with OpenFOAM.org"
+  mv $FOAM_ETC/controlDict $FOAM_ETC/controlDict.bak
+fi
+
+# Source tutorial run functions
+source "$WM_PROJECT_DIR/bin/tools/RunFunctions"
+
+# ******************************************************************************
+
+# Set start/end time and solver type for steady state simulation
+startTime="${1:-0}"
+changeTime1="${2:-200}"
+changeTime2="${3:-400}"
+endTime="${4:-1000}"
+
+echo " ->    start time: $startTime"
+echo " -> change time 1: $changeTime1"
+echo " -> change time 2: $changeTime2"
+echo " ->      end time: $endTime"
+echo
+
+	
+# Initialize BC for the case
+rm -rf 0
+cp -r 0_org 0
+
+# --------------------------------------------------------------------------
+#  In **MRF** and **DynamicMesh** simulations
+#  the initialization with **potentialFoam** does NOT work !
+#  !!! Comment it out !!!
+# --------------------------------------------------------------------------
+# runApplication potentialFoam -initialiseUBCs -writep
+
+
+# -------------------------------------------------
+# --- Prepare the steady case for SIMPLE solver ---
+# -------------------------------------------------
+
+# Set steady state simulation control dict declarations
+sed -i '/^#include.*/c\\#include "controlDict_ss"' system/controlDict
+foamDictionary system/controlDict -entry startTime -set ${startTime}
+foamDictionary system/controlDict -entry endTime -set ${changeTime1}
+
+# Start with simple from startTime to changeTime
+sed -i '/^#include.*/c\\#include "fvSolution.simple"' system/fvSolution
+sed -i '/^#include.*/c\\#include "fvSchemes.simple"' system/fvSchemes
+foamDictionary system/fvSchemes -entry ddtSchemes/default -set "steadyState"
+
+# Case is prepared and run decompose for parallel run
+runApplication decomposePar
+
+# Run in parallel steady state
+runParallel foamRun
+mv log.foamRun log.foamRun_simple_1
+
+# ---------------------------------------------------
+# --- Prepare the steady case for SIMPLE-C solver ---
+# ---------------------------------------------------
+
+# Set steady state simulation control dict declarations
+foamDictionary system/controlDict -entry startTime -set ${changeTime1}
+foamDictionary system/controlDict -entry endTime -set ${changeTime2}
+
+# Start with simple from startTime to changeTime
+sed -i '/^#include.*/c\\#include "fvSolution.simplec"' system/fvSolution
+
+# Run in parallel steady state
+runParallel foamRun
+mv log.foamRun log.foamRun_simplec
+
+# ---------------------------------------------------
+# --- Prepare the steady case for SIMPLE solver ---
+# ---------------------------------------------------
+
+# Set steady state simulation control dict declarations
+foamDictionary system/controlDict -entry startTime -set ${changeTime2}
+foamDictionary system/controlDict -entry endTime -set ${endTime}
+
+# Start with simple from startTime to changeTime
+sed -i '/^#include.*/c\\#include "fvSolution.simple"' system/fvSolution
+
+# Run in parallel steady state
+runParallel foamRun
+mv log.foamRun log.foamRun_simple_2
+
+# Reconstruct the latest result
+runApplication reconstructPar -latestTime
+
+# Do some post processing
+foamPostProcess -latestTime -solver incompressibleFluid -func yPlus
+foamPostProcess -latestTime -solver incompressibleFluid -func wallShearStress
+
+# Generate residual and forces plot
+#/opt/conda/miniconda3/bin/python3 plot_residuals.py -o pdf
+#/opt/conda/miniconda3/bin/python3 plot_forces.py -t 100 -o pdf
+
+# ******************************************************************************

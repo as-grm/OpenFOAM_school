@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+# Run from this directory
+cd "$(dirname -- "$(readlink -f -- "$0")")" || exit 1
+
+# Secure to OpenFAOM.org
+if [[ -f "$FOAM_ETC/controlDict" ]]; then
+  echo " -> Hiding controlDict in $FOAM_ETC to work with OpenFOAM.org"
+  mv $FOAM_ETC/controlDict $FOAM_ETC/controlDict.bak
+fi
+
+# Source tutorial clean functions
+source "$WM_PROJECT_DIR/bin/tools/CleanFunctions"
+
+# ******************************************************************************
+
+
+# --- Secure mesh ---
+echo "Secure mesh copy to ../polyMesh"
+rm -rf ../polyMesh
+cp -r constant/polyMesh ../
+
+# --- Clean case ---
+# Delete the following:
+# - time directories
+# - constant/polyMesh directory
+# - postProcessing and VTK directories
+# - log files
+# - field files with a ".orig" backup
+cleanCase
+rm -rf 0
+rm -rf postProcessing*
+rm -rf *.pdf
+
+echo "Copy mesh from ../polyMesh"
+cp -r ../polyMesh constant
+rm -rf ../polyMesh
+
+# Reset to steady state simulation
+sed -i '/^#include.*/c\\#include "controlDict_ss"' system/controlDict
+foamDictionary system/fvSchemes -entry ddtSchemes/default -set "steadyState"
+
+# ******************************************************************************
