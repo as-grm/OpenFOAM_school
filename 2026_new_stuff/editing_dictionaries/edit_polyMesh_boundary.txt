@@ -1,0 +1,74 @@
+Bellow are the outputs of selected entities. First we start with keywords list nad then with the rest of commands.
+
+>$ foamDictionary constant/polyMesh/boundary -keywords
+
+FoamFile
+entry0
+
+>$ foamDictionary constant/polyMesh/boundary -entry entry0
+
+7 // entry0
+(
+    inlet
+    {
+        type            patch;
+        nFaces          400;
+        startFace       16690185;
+    }
+    outlet
+    {
+        type            patch;
+        nFaces          664;
+        startFace       16690585;
+    }
+    outer_wall
+    {
+        type            symmetry;
+        inGroups        List<word> 1(symmetry);
+        nFaces          2400;
+        startFace       16691249;
+    }
+    blades
+    {
+        type            wall;
+        inGroups        List<word> 1(wall);
+        nFaces          174244;
+        startFace       16693649;
+    }
+    hub_support
+    {
+        type            wall;
+        inGroups        List<word> 1(wall);
+        nFaces          9825;
+        startFace       16867893;
+    }
+    hub_front_end
+    {
+        type            wall;
+        inGroups        List<word> 1(wall);
+        nFaces          13005;
+        startFace       16877718;
+    }
+    duct
+    {
+        type            wall;
+        inGroups        List<word> 1(wall);
+        nFaces          160434;
+        startFace       16890723;
+    }
+)
+
+
+>$ foamDictionary constant/polyMesh/boundary -entry entry0/inlet
+inlet
+{
+    type            patch;
+    nFaces          400;
+    startFace       16690185;
+}
+
+>$ foamDictionary constant/polyMesh/boundary -entry entry0/inlet/type
+type            patch;
+
+!!! Using -set option we replace the value (patch -> wall):
+>$ foamDictionary constant/polyMesh/boundary -entry entry0/inlet/type -set wall
