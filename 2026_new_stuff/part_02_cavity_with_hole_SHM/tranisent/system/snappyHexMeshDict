@@ -16,9 +16,9 @@ FoamFile
 
 #includeEtc "caseDicts/mesh/generation/snappyHexMeshDict.cfg"
 
-castellatedMesh off;
+castellatedMesh on;
 
-snap            off;
+snap            on;
 
 addLayers       on;
 
@@ -70,14 +70,14 @@ addLayersControls
 {
     layers
     {
-        "cross.*" { nSurfaceLayers 7; }
+        "cross.*" { nSurfaceLayers 3; }
     }
 
     relativeSizes       yes; // off, usually with firstLayerThickness
     expansionRatio      1.2;
     finalLayerThickness 0.5;
-    minThickness        0.01;
-    //firstLayerThickness 0.5;
+    minThickness        0.2;
+    firstLayerThickness-disabled 0;
     maxThicknessToMedialRatio-disabled 0.3;
 }
 
